@@ -1,205 +1,220 @@
-import { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  ActivityIndicator,
+  View,
+  Text,
+  StyleSheet,
   FlatList,
   Image,
-  StyleSheet,
-  Text,
   TextInput,
-  View,
+  TouchableOpacity,
+  ScrollView,
+  ActivityIndicator,
 } from "react-native";
-import CategorySelector from "../component/CategorySelector";
+import axios from "axios";
 
-/* -------- Component -------- */
 const HomeCatalogScreen = () => {
-  const [productsList, setProductsList] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
-  const [data, setData] = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
+  const [activeCat, setActiveCat] = useState("All");
 
-  const PAGE_SIZE = 10;
+  useEffect(() => {
+    fetchData();
+  }, []);
 
-  const getApiData = async () => {
-    const url = "https://fakestoreapiserver.reactbd.org/api/categories";
-
-    const result = await fetch(url);
-    const result1 = await result.json();
-    setData(result1.data);
-  };
-
-  const getProductData = async () => {
+  // const fetchData = async () => {
+  //   try {
+  //     const [catRes, prodRes] = await Promise.all([
+  //       axios.get("https://fakestoreapiserver.reactbd.org/api/categories"),
+  //       axios.get("https://fakestoreapiserver.reactbd.org/api/products"),
+  //     ]);
+  //     setCategories([{ name: "All" }, ...catRes.data]); // Adding a default 'All' category
+  //     setProducts(prodRes.data);
+  //     setFilteredProducts(prodRes.data);
+  //   } catch (err) {
+  //     console.error(err);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+  const fetchData = async () => {
     try {
-      const url = "https://fakestoreapiserver.reactbd.org/api/products";
-      const result = await fetch(url);
-      const productList = await result.json();
-      console.log(productList.data);
-      setProductsList(productList.data);
-    } catch (error) {
-      console.error("Error fetching products:", error);
+      const [catRes, prodRes] = await Promise.all([
+        fetch("https://fakestoreapiserver.reactbd.org/api/categories"),
+        fetch("https://fakestoreapiserver.reactbd.org/api/products"),
+      ]);
+
+      var categoriesData = await catRes.json();
+      var productsData = await prodRes.json();
+      categoriesData = categoriesData.data; // Adjust based on actual API response structure
+      productsData = productsData.data; // Adjust based on actual API response structure
+
+      // 🛑 SAFETY CHECK: Log the data to see exactly what you're getting
+      console.log("Categories Received:", categoriesData);
+      console.log("Products Received:", productsData);
+
+      // Only set state if the data is actually an array
+      if (Array.isArray(categoriesData)) {
+        setCategories([{ name: "All" }, ...categoriesData]);
+      } else {
+        console.warn("Categories is not an array!");
+      }
+
+      if (Array.isArray(productsData)) {
+        setProducts(productsData);
+        setFilteredProducts(productsData);
+      } else {
+        console.warn("Products is not an array!");
+      }
+    } catch (err) {
+      console.error("Fetch Error:", err);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  useEffect(() => {
-    getApiData();
-  }, []);
-
-  useEffect(() => {
-    getProductData();
-  }, []);
-
-  // if (isLoading) {
-  //   return (
-  //     <View style={styles.center}>
-  //       <ActivityIndicator size="large" color="#6A9AB0" />
-  //     </View>
-  //   );
-  // }
-
-  useEffect(() => {
-    loadProducts(1, true);
-  }, []);
-
-  const loadProducts = (pageNumber, reset = false) => {
-    if (loadingMore) return;
-
-    setLoadingMore(true);
-
-    setTimeout(() => {
-      const start = (pageNumber - 1) * PAGE_SIZE;
-      const end = start + PAGE_SIZE;
-      const newItems = productsList.slice(start, end);
-      console.log("Newwwwwwwww");
-      console.log(productsList);
-
-      setProducts(reset ? newItems : [...products, ...newItems]);
-      setPage(pageNumber);
-      setLoadingMore(false);
-      setRefreshing(false);
-    }, 800);
+  const handleSearch = (text) => {
+    setSearch(text);
+    const filtered = products.filter((item) =>
+      item.title.toLowerCase().includes(text.toLowerCase()),
+    );
+    setFilteredProducts(filtered);
   };
 
-  /* -------- Filtering -------- */
-  const filteredProducts = products.filter((item) => {
-    const matchName = item.title.toLowerCase().includes(search.toLowerCase());
-    const matchCategory = category === "All" || item.category === category;
-    return matchName && matchCategory;
-  });
-
-  // This is the callback function passed to the child
-  const handleIdSelection = (id) => {
-    setSelectedId(id);
-    console.log(id);
-  };
-
-  /* -------- Render Product -------- */
-  const renderItem = ({ item }) => (
+  const ProductCard = ({ item }) => (
     <View style={styles.card}>
-      <Image source={{ uri: item.image }} style={styles.image} />
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.price}>${item.price}</Text>
+      <Image source={{ uri: item.image }} style={styles.productImg} />
+      <View style={styles.cardInfo}>
+        <Text numberOfLines={1} style={styles.productTitle}>
+          {item.title}
+        </Text>
+        <Text style={styles.price}>${item.price}</Text>
+        <TouchableOpacity style={styles.addButton}>
+          <Text style={styles.addText}>Add to Cart</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
+  if (loading)
+    return <ActivityIndicator size="large" color="#000" style={{ flex: 1 }} />;
+
   return (
     <View style={styles.container}>
-      {/* Search */}
-      <TextInput
-        style={styles.search}
-        placeholder="Search products..."
-        value={search}
-        onChangeText={setSearch}
-      />
+      {/* Header & Search */}
+      <View style={styles.header}>
+        <View style={styles.searchContainer}>
+          <TextInput
+            placeholder="Search products..."
+            style={styles.searchInput}
+            value={search}
+            onChangeText={handleSearch}
+          />
+        </View>
+      </View>
 
-      {/* Category Filter */}
-      <CategorySelector categories={data} onSelect={handleIdSelection} />
+      {/* Horizontal Categories */}
+      <View style={{ height: 60 }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.catList}
+        >
+          {categories.map((cat, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => setActiveCat(cat.name)}
+              style={[
+                styles.catItem,
+                activeCat === cat.name && styles.catItemActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.catText,
+                  activeCat === cat.name && styles.catTextActive,
+                ]}
+              >
+                {cat.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Product Grid */}
       <FlatList
-        data={products}
+        data={filteredProducts}
+        renderItem={ProductCard}
         keyExtractor={(item) => item._id.toString()}
-        renderItem={renderItem}
         numColumns={2}
-        // columnWrapperStyle={{ justifyContent: "space-between" }}
-        // refreshing={refreshing}
-        // onRefresh={() => {
-        //   setRefreshing(true);
-        //   loadProducts(1, true);
-        // }}
-        // onEndReached={() => loadProducts(page + 1)}
-        // onEndReachedThreshold={0.3}
-        // ListFooterComponent={loadingMore && <ActivityIndicator size="small" />}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.productList}
       />
     </View>
   );
 };
 
-export default HomeCatalogScreen;
-
-/* -------- Styles -------- */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 12,
+  container: { flex: 1, backgroundColor: "#f8f9fa" },
+  header: {
+    padding: 20,
     backgroundColor: "#fff",
+    borderBottomLeftRadius: 25,
+    borderBottomRightRadius: 25,
+    elevation: 5,
   },
-  search: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+  logo: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#1a1a1a",
+    marginBottom: 15,
   },
-  categoryRow: {
-    flexDirection: "row",
-    marginBottom: 10,
+  searchContainer: {
+    backgroundColor: "#f1f3f5",
+    borderRadius: 12,
+    paddingHorizontal: 15,
   },
-  categoryBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+  searchInput: { height: 45, fontSize: 16 },
+  catList: { paddingHorizontal: 20, alignItems: "center" },
+  catItem: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    marginRight: 8,
+    marginRight: 10,
+    backgroundColor: "#eee",
   },
-  activeCategory: {
-    backgroundColor: "#4A90E2",
-    borderColor: "#4A90E2",
-  },
-  categoryText: {
-    fontSize: 12,
-    color: "#333",
-  },
-  activeText: {
-    color: "#fff",
-  },
+  catItemActive: { backgroundColor: "#000" },
+  catText: { color: "#666", fontWeight: "600" },
+  catTextActive: { color: "#fff" },
+  productList: { padding: 10 },
+  row: { justifyContent: "space-between" },
   card: {
+    backgroundColor: "#fff",
     width: "48%",
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
+    borderRadius: 15,
+    marginBottom: 15,
+    overflow: "hidden",
+    elevation: 3,
   },
-  image: {
+  productImg: {
     width: "100%",
-    height: 120,
-    borderRadius: 6,
-    marginBottom: 8,
+    height: 150,
+    resizeMode: "contain",
+    marginTop: 10,
   },
-  title: {
-    fontSize: 14,
-    fontWeight: "600",
+  cardInfo: { padding: 12 },
+  productTitle: { fontWeight: "bold", fontSize: 14, color: "#333" },
+  price: { color: "#2ecc71", fontWeight: "bold", marginVertical: 5 },
+  addButton: {
+    backgroundColor: "#000",
+    padding: 8,
+    borderRadius: 8,
+    alignItems: "center",
   },
-  price: {
-    fontSize: 14,
-    color: "#4A90E2",
-    marginTop: 4,
-  },
+  addText: { color: "#fff", fontSize: 12, fontWeight: "bold" },
 });
+
+export default HomeCatalogScreen;
