@@ -9,10 +9,11 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
-import axios from "axios";
+//import axios from "axios";
 
-const HomeCatalogScreen = () => {
+const HomeCatalogScreen = ({ navigation }) => {
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
@@ -83,8 +84,22 @@ const HomeCatalogScreen = () => {
     setFilteredProducts(filtered);
   };
 
+  const showProductDetails = (item) => {
+    console.log("Selected Product:", item); // Log the product to ensure it's correct
+    navigation.navigate("ProductDetail", { product: item });
+  };
+
+  const showProductDetailssss = (item) => () => {
+    // To call this function, we would use: onPress={showProductDetailssss(item)}
+    // This is a higher-order function that returns a function to be used as an event handler
+    // navigation.navigate("ProductDetail", { product: item });
+  };
+
   const ProductCard = ({ item }) => (
-    <View style={styles.card}>
+    <Pressable
+      style={styles.card}
+      onPress={() => navigation.navigate("ProductDetail", { order: item })}
+    >
       <Image source={{ uri: item.image }} style={styles.productImg} />
       <View style={styles.cardInfo}>
         <Text numberOfLines={1} style={styles.productTitle}>
@@ -95,7 +110,7 @@ const HomeCatalogScreen = () => {
           <Text style={styles.addText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Pressable>
   );
 
   if (loading)
