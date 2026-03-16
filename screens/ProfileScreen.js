@@ -1,13 +1,6 @@
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import {
-  Bell,
-  ChevronRight,
-  CreditCard,
-  LogOut,
-  MapPin,
-  Settings,
-  User,
-} from "lucide-react-native";
-import {
+  Alert,
   Image,
   ScrollView,
   StyleSheet,
@@ -16,157 +9,221 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { GlobalStyle } from "../constant/styles";
+import { useAuth } from "../context/AuthContext"; // Import the useAuth hook
+import { AnalyticsService } from "../service/AnalyticsService";
 
-const placeholderImage = require("../assets/atom.png"); // Local image
-const ORDERS = "orders";
-const NOTIFICATIONS = "notifications";
-const UPDATE_ADDRESS = "updateAddress";
-const CHANGE_PASSWORD = "changePassword";
-const PERSONAL_INFO = "personalInfo";
-const LOGOUT = "logout";
+function ProfileScreen({ navigation }) {
+  const { logout } = useAuth(); // Get the logout function from context
+  const { userToken } = useAuth(); // Destructure userToken from the hook
 
-const ProfileScreen = ({ navigation }) => {
-  function handleMenuClick(type) {
-    console.log(type);
-    switch (type) {
-      case ORDERS:
-        navigation.navigate("OrderHistory");
-        break;
-      case UPDATE_ADDRESS:
-        navigation.navigate("UpdateAddress");
-        break;
-      case NOTIFICATIONS:
-        navigation.navigate("NotificationScreen");
-        break;
-      case CHANGE_PASSWORD:
-        navigation.navigate("ChangePassword");
-        break;
-      case PERSONAL_INFO:
-        navigation.navigate("ViewProfileScreen");
-        break;
-    }
+  const logoutIcon = require("../assets/logout.png");
+
+  function handleLogout() {
+    console.log("Logout clicked");
+    AnalyticsService.clearLogs();
+
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      {
+        text: "Cancel",
+        onPress: () => console.log("Cancel Pressed"),
+        style: "cancel", // Android: shows as a secondary action; iOS: bold
+      },
+      {
+        text: "Logout",
+        onPress: () => logout(), // Your AuthContext logout function
+      },
+    ]);
   }
+
+  // This function receives the 'id' from whichever button was tapped
+  const handleButtonPress = (action) => {
+    if (action === "ViewOrders") {
+      navigation.navigate("OrderHistory");
+    } else if (action === "SendLogs") {
+      sendLogsViaEmail();
+    }
+  };
+
+  const sendLogsViaEmail = async () => {
+    console.log("via email");
+    AnalyticsService.exportLogs();
+  };
+
   return (
-    <SafeAreaView edges={["bottom", "left", "right"]} style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.container}>
-        {/* Profile Header */}
+    <SafeAreaView style={styles.container}>
+      {/* 1. TOP VIEW (Scrollable Content) */}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Custom Header */}
         <View style={styles.header}>
-          <Image
-            // source={{ uri: "https://reactnative.dev/img/tiny_logo.png" }}
-            source={placeholderImage}
-            style={styles.profileImage}
-          />
-          <Text style={styles.userName}>Jane Doe</Text>
-          <Text style={styles.userHandle}>@janedoe_dev</Text>
-          <TouchableOpacity style={styles.editButton}>
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+          <TouchableOpacity
+            style={styles.iconCircle}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <TouchableOpacity onPress={handleLogout}>
+            <Image source={logoutIcon} style={styles.googleIcon} />
           </TouchableOpacity>
         </View>
 
-        {/* Menu Options */}
-        <View style={styles.menuWrapper}>
-          <MenuItem
-            icon={<CreditCard size={20} color="#666" />}
-            text="Orders"
-            onPressAction={() => handleMenuClick(ORDERS)}
+        {/* Profile Info */}
+        <View style={styles.profileSection}>
+          <Image
+            source={{ uri: "https://randomuser.me/api/portraits/men/1.jpg" }}
+            style={styles.avatar}
           />
-          <MenuItem
-            icon={<Bell size={20} color="#666" />}
-            text="Notifications"
-            onPressAction={() => handleMenuClick(NOTIFICATIONS)}
+          <Text style={styles.userName}>{userToken?.fullName}</Text>
+          <Text style={styles.location}>{userToken?.city}</Text>
+        </View>
+
+        {/* Info Rows */}
+        <View style={styles.infoContainer}>
+          <InfoRow
+            icon="phone-outline"
+            label="Mobile Phone"
+            value={userToken?.phone || "N/A"}
           />
-          <MenuItem
-            icon={<MapPin size={20} color="#666" />}
-            text="Update Address"
-            onPressAction={() => handleMenuClick(UPDATE_ADDRESS)}
+          <InfoRow
+            icon="email-outline"
+            label="Email Address"
+            value={userToken?.email || "N/A"}
           />
-          <MenuItem
-            icon={<Settings size={20} color="#666" />}
-            text="Change Password"
-            onPressAction={() => handleMenuClick(CHANGE_PASSWORD)}
+          <InfoRow
+            icon="map-marker-outline"
+            label="Address"
+            value={userToken?.address || "N/A"}
           />
-          <MenuItem
-            icon={<User size={20} color="#666" />}
-            text="Personal Information"
-            onPressAction={() => handleMenuClick(PERSONAL_INFO)}
+        </View>
+
+        {/* Horizontal Section */}
+        <View
+          style={{
+            flex: "1",
+            flexDirection: "row",
+            justifyContent: "space-between",
+          }}
+        >
+          <OrderCard
+            name="My Orders"
+            onPress={handleButtonPress}
+            actionType="ViewOrders"
           />
-          <MenuItem
-            icon={<LogOut size={20} color="#FF3B30" />}
-            text="Logout"
-            onPressAction={() => handleMenuClick(LOGOUT)}
-            hideChevron
-            isLast
+          <OrderCard
+            name="Send App Logs"
+            onPress={handleButtonPress}
+            actionType="SendLogs"
           />
+          {/* <OrderCard name="Omber Coffee" category="Beverages" color="#000" /> */}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
-// Helper component for menu items
-const MenuItem = ({ icon, text, hideChevron, isLast, onPressAction }) => (
-  <TouchableOpacity
-    style={[styles.menuItem, isLast && { borderBottomWidth: 0 }]}
-    onPress={onPressAction}
-  >
-    <View style={styles.menuItemLeft}>
-      {icon}
-      <Text
-        style={[styles.menuItemText, text === "Logout" && { color: "#FF3B30" }]}
-      >
-        {text}
-      </Text>
+// Sub-components
+const InfoRow = ({ icon, label, value }) => (
+  <View style={styles.infoRow}>
+    <View style={styles.infoIconBox}>
+      <MaterialCommunityIcons name={icon} size={24} color="#007953" />
     </View>
-    {!hideChevron && <ChevronRight size={18} color="#CCC" />}
+    <View>
+      <Text style={styles.infoLabel}>{label}</Text>
+      <Text style={styles.infoValue}>{value}</Text>
+    </View>
+  </View>
+);
+
+const OrderCard = ({ name, onPress, actionType }) => (
+  <TouchableOpacity style={styles.card} onPress={() => onPress(actionType)}>
+    <View>
+      <Text style={styles.cardName}>{name}</Text>
+    </View>
   </TouchableOpacity>
 );
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  container: { flex: 1, backgroundColor: "#fff" },
+  scrollContent: { padding: 20, paddingBottom: 100 },
   header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 15,
-    backgroundColor: "#FFFFFF",
+    marginBottom: 30,
   },
-  profileImage: { width: 128, height: 128, borderRadius: 10, marginBottom: 15 },
-  userName: { fontSize: 22, fontWeight: "700", color: "#1A1A1A" },
-  userHandle: { fontSize: 14, color: "#666", marginBottom: 15 },
-  editButton: {
-    paddingHorizontal: 25,
-    paddingVertical: 10,
-    backgroundColor: "#007AFF",
-    borderRadius: 20,
+  iconCircle: { padding: 8, backgroundColor: "#f5f5f5", borderRadius: 25 },
+  headerTitle: { fontSize: 20, fontWeight: "bold" },
+  profileSection: { alignItems: "center", marginBottom: 30 },
+  avatar: { width: 120, height: 120, borderRadius: 60, marginBottom: 15 },
+  userName: { fontSize: 28, fontWeight: "bold", color: "#1a1a1a" },
+  location: { color: "#007953", fontSize: 16, marginTop: 5 },
+  infoContainer: { marginVertical: 20 },
+  infoRow: { flexDirection: "row", alignItems: "center", marginBottom: 25 },
+  infoIconBox: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: "#fff",
+    elevation: 4,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  editButtonText: { color: "#FFF", fontWeight: "600" },
-  statsContainer: {
+  infoLabel: { fontSize: 12, color: "#999", marginBottom: 2 },
+  infoValue: { fontSize: 16, fontWeight: "500", color: "#333" },
+  sectionTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 15 },
+  horizontalScroll: { paddingLeft: 0 },
+  card: {
+    /* Shape & Border */
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#059669", // Emerald 600
+
+    /* Background & Spacing */
+    backgroundColor: GlobalStyle.color.activeTint,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: "center",
+    justifyContent: "center",
+
+    /* Shadow (iOS) */
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+
+    /* Shadow (Android) */
+    elevation: 3,
+  },
+  cardName: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  cardCat: { color: "#ddd", fontSize: 14, marginTop: 4 },
+  bottomNav: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 70,
+    backgroundColor: "#fff",
     flexDirection: "row",
     justifyContent: "space-around",
-    paddingVertical: 20,
-    backgroundColor: "#FFF",
-    borderTopWidth: 1,
-    borderTopColor: "#EEE",
-  },
-  statBox: { alignItems: "center" },
-  statNumber: { fontSize: 18, fontWeight: "700" },
-  statLabel: { fontSize: 12, color: "#666" },
-  menuWrapper: {
-    marginTop: 20,
-    backgroundColor: "#FFF",
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#EEE",
-  },
-  menuItem: {
-    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEE",
+    borderTopWidth: 1,
+    borderColor: "#eee",
+    paddingBottom: 10,
   },
-  menuItemLeft: { flexDirection: "row", alignItems: "center" },
-  menuItemText: { marginLeft: 15, fontSize: 16, color: "#333" },
+  activeNavCircle: { backgroundColor: "#007953", padding: 8, borderRadius: 25 },
+  googleIcon: { width: 24, height: 24 },
 });
 
 export default ProfileScreen;

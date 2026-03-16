@@ -1,11 +1,20 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons"; // Ensure @expo/vector-icons is installed
+import { GlobalStyle } from "../constant/styles";
 
 const OrderSuccessScreen = ({ navigation }) => {
+  const navigateToHome = () => {
+    navigation.reset({
+      index: 0, // This sets the 'Home' screen as the first and only screen in the stack
+      routes: [{ name: "BottomTabs" }], // The name must match the name in your Stack.Screen
+    });
+  };
+
   return (
     <View style={styles.container}>
       {/* Success Icon */}
-      <Text style={styles.icon}>✅</Text>
+      <Ionicons name="checkmark-circle" size={100} color="green" />
 
       {/* Success Message */}
       <Text style={styles.title}>Order Placed!</Text>
@@ -14,10 +23,7 @@ const OrderSuccessScreen = ({ navigation }) => {
       </Text>
 
       {/* Back to Home Button */}
-      <TouchableOpacity
-        style={styles.homeBtn}
-        onPress={() => navigation.popToTop()}
-      >
+      <TouchableOpacity style={styles.homeBtn} onPress={() => navigateToHome()}>
         <Text style={styles.homeText}>Back to Home</Text>
       </TouchableOpacity>
     </View>
@@ -51,7 +57,7 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   homeBtn: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: GlobalStyle.color.activeTint,
     paddingVertical: 14,
     paddingHorizontal: 30,
     borderRadius: 10,

@@ -5,10 +5,38 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { ORDERS } from "../data/mockOrders";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { ORDER_API_URL } from "../constant/AppConstant";
+import { useAuth } from "../context/AuthContext";
+import { use, useEffect, useState } from "react";
+import { Dimensions } from "react-native";
+import { useIsFocused } from "@react-navigation/native";
+
+const screenHeight = Dimensions.get("window").height;
 
 const OrdersScreen = ({ navigation }) => {
+  const { userToken } = useAuth();
+  const [orders, setOrders] = useState([]);
+  const isFocused = useIsFocused();
+
+  const fetchUserOrders = async () => {
+    try {
+      const response = await fetch(ORDER_API_URL + `?userId=${userToken?.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setOrders(data);
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      setOrders([]); // Clear orders on error
+    }
+  };
+
+  useEffect(() => {
+    if (isFocused) fetchUserOrders();
+  }, [isFocused]);
+
   const renderItem = ({ item }) => (
     <View style={styles.orderCard}>
       <TouchableOpacity
@@ -17,13 +45,13 @@ const OrdersScreen = ({ navigation }) => {
         <View style={styles.row}>
           <View style={styles.orderID}>
             <Text style={styles.orderId}>Order ID: </Text>
-            <Text style={styles.date}>#{item.id}</Text>
+            <Text style={styles.date}>#{item.orderID}</Text>
           </View>
           <Text style={styles.status}>{item.status}</Text>
         </View>
         <View style={styles.orderID}>
           <Text style={styles.orderId}>Order Date: </Text>
-          <Text style={styles.date}>{item.date}</Text>
+          <Text style={styles.date}>{item.orderDate}</Text>
         </View>
         <View style={styles.orderID}>
           <Text style={styles.orderId}>Total Price: </Text>
@@ -34,13 +62,34 @@ const OrdersScreen = ({ navigation }) => {
   );
 
   return (
-    <SafeAreaView edges={["bottom", "left", "right"]} style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.iconCircle}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My Orders</Text>
+        <View style={{ width: 40 }} />
+      </View>
       <FlatList
-        data={ORDERS}
+        data={orders}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
-        ListEmptyComponent={<Text>No past orders</Text>}
+        ListEmptyComponent={
+          <View
+            style={{
+              height: screenHeight * 0.7,
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+          >
+            <Ionicons name="receipt-outline" size={80} color="#CCC" />
+            <Text style={styles.emptyText}>No past orders</Text>
+          </View>
+        }
       />
     </SafeAreaView>
   );
@@ -54,6 +103,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#f9f9f9",
   },
   listContent: { padding: 15 },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 20,
+    alignItems: "center",
+  },
+  headerTitle: { fontSize: 20, fontWeight: "bold" },
+  iconCircle: { padding: 8, backgroundColor: "#f5f5f5", borderRadius: 25 },
   orderCard: {
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -90,5 +147,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     textAlignVertical: "center",
     alignItems: "center",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyText: {
+    fontSize: 18,
+    color: "#999",
+    marginTop: 10,
   },
 });

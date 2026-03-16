@@ -1,16 +1,23 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  ActivityIndicator,
   FlatList,
   Image,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Pressable,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "../context/AuthContext"; // Import the useAuth hook
+import {
+  CATEGORY_API_URL,
+  PRODUCT_API_URL,
+  CART_API_URL,
+} from "../constant/AppConstant";
 //import axios from "axios";
 
 const HomeCatalogScreen = ({ navigation }) => {
@@ -20,41 +27,27 @@ const HomeCatalogScreen = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCat, setActiveCat] = useState("All");
+  const { userToken } = useAuth(); // Destructure userToken from the hook
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // const fetchData = async () => {
-  //   try {
-  //     const [catRes, prodRes] = await Promise.all([
-  //       axios.get("https://fakestoreapiserver.reactbd.org/api/categories"),
-  //       axios.get("https://fakestoreapiserver.reactbd.org/api/products"),
-  //     ]);
-  //     setCategories([{ name: "All" }, ...catRes.data]); // Adding a default 'All' category
-  //     setProducts(prodRes.data);
-  //     setFilteredProducts(prodRes.data);
-  //   } catch (err) {
-  //     console.error(err);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   const fetchData = async () => {
     try {
       const [catRes, prodRes] = await Promise.all([
-        fetch("https://fakestoreapiserver.reactbd.org/api/categories"),
-        fetch("https://fakestoreapiserver.reactbd.org/api/products"),
+        fetch(CATEGORY_API_URL),
+        fetch(PRODUCT_API_URL),
       ]);
 
       var categoriesData = await catRes.json();
       var productsData = await prodRes.json();
-      categoriesData = categoriesData.data; // Adjust based on actual API response structure
-      productsData = productsData.data; // Adjust based on actual API response structure
+      // categoriesData = categoriesData.data; // Adjust based on actual API response structure
+      // productsData = productsData.data; // Adjust based on actual API response structure
 
       // 🛑 SAFETY CHECK: Log the data to see exactly what you're getting
-      console.log("Categories Received:", categoriesData);
-      console.log("Products Received:", productsData);
+      //console.log("Categories Received:", categoriesData);
+      // console.log("Products Received:", productsData);
 
       // Only set state if the data is actually an array
       if (Array.isArray(categoriesData)) {
@@ -84,6 +77,60 @@ const HomeCatalogScreen = ({ navigation }) => {
     setFilteredProducts(filtered);
   };
 
+  const filterByCategory = (cat) => {
+    setSearch(""); // Clear search when category is selected
+    setActiveCat(cat);
+    if (cat === "All") {
+      setFilteredProducts(products);
+    } else {
+      const filtered = products.filter(
+        (item) => item.category.toLowerCase() === cat.toLowerCase(),
+      );
+      setFilteredProducts(filtered);
+    }
+  };
+
+  const addToCart = async (product) => {
+    try {
+      // 1. Fetch current cart to check for duplicates
+      const response = await fetch(CART_API_URL + `?userId=${userToken?.id}`); // Assuming cart items are associated with a userId
+      const cartItems = await response.json();
+
+      const existingItem = cartItems.find(
+        (item) => item.id === `${userToken?.id}-${product.productID}`,
+      );
+
+      if (existingItem) {
+        // 2. If it exists, UPDATE the quantity (PUT)
+        // await fetch(`${CART_API_URL}/${product.id}`, {
+        //   method: "PUT",
+        //   headers: { "Content-Type": "application/json" },
+        //   body: JSON.stringify({
+        //     ...existingItem,
+        //     quantity: (existingItem.quantity || 1) + 1,
+        //   }),
+        // });
+        alert("This product is already in your cart! 🛒");
+      } else {
+        // 3. If it's new, ADD it (POST)
+        await fetch(CART_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...product,
+            quantity: 1, // Initialize quantity
+            oldPrice: Number(product.oldPrice), // Safety for your .toFixed()
+            userId: userToken?.id,
+            id: `${userToken?.id}-${product.productID}`,
+          }),
+        });
+        alert("Added to cart! 🛒");
+      }
+    } catch (error) {
+      console.error("Cart Error:", error);
+    }
+  };
+
   const showProductDetails = (item) => {
     console.log("Selected Product:", item); // Log the product to ensure it's correct
     navigation.navigate("ProductDetail", { product: item });
@@ -96,17 +143,17 @@ const HomeCatalogScreen = ({ navigation }) => {
   };
 
   const ProductCard = ({ item }) => (
-    <Pressable
-      style={styles.card}
-      onPress={() => navigation.navigate("ProductDetail", { order: item })}
-    >
+    <Pressable style={styles.card} onPress={() => showProductDetails(item)}>
       <Image source={{ uri: item.image }} style={styles.productImg} />
       <View style={styles.cardInfo}>
         <Text numberOfLines={1} style={styles.productTitle}>
           {item.title}
         </Text>
         <Text style={styles.price}>${item.price}</Text>
-        <TouchableOpacity style={styles.addButton}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => addToCart(item)}
+        >
           <Text style={styles.addText}>Add to Cart</Text>
         </TouchableOpacity>
       </View>
@@ -117,7 +164,7 @@ const HomeCatalogScreen = ({ navigation }) => {
     return <ActivityIndicator size="large" color="#000" style={{ flex: 1 }} />;
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header & Search */}
       <View style={styles.header}>
         <View style={styles.searchContainer}>
@@ -140,7 +187,7 @@ const HomeCatalogScreen = ({ navigation }) => {
           {categories.map((cat, index) => (
             <TouchableOpacity
               key={index}
-              onPress={() => setActiveCat(cat.name)}
+              onPress={() => filterByCategory(cat.name)}
               style={[
                 styles.catItem,
                 activeCat === cat.name && styles.catItemActive,
@@ -163,12 +210,12 @@ const HomeCatalogScreen = ({ navigation }) => {
       <FlatList
         data={filteredProducts}
         renderItem={ProductCard}
-        keyExtractor={(item) => item._id.toString()}
+        keyExtractor={(item) => item.productID.toString()}
         numColumns={2}
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.productList}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -176,16 +223,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa" },
   header: {
     padding: 20,
+    margin: 10,
     backgroundColor: "#fff",
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
+    borderRadius: 25,
     elevation: 5,
-  },
-  logo: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#1a1a1a",
-    marginBottom: 15,
   },
   searchContainer: {
     backgroundColor: "#f1f3f5",

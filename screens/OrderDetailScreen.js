@@ -1,49 +1,53 @@
-import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
+  Image,
   ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
+  View,
 } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const OrderDetailScreen = ({ route, navigation }) => {
-  // Your JSON object
-  const orderData = {
-    orderID: 1,
-    userId: 1,
-    orderDate: "2025-06-01",
-    status: "Delivered",
-    totalAmount: 559.99,
-    items: [
-      { productID: 29, name: "Navy Blazer", quantity: 1, price: 250 },
-      { productID: 14, name: "Clothes with bag", quantity: 1, price: 50 },
-    ],
+  const { order } = route.params; // Get the order details passed from OrdersScreen
+
+  const handleBackPress = () => {
+    navigation.goBack();
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.iconCircle} onPress={handleBackPress}>
+          <Ionicons name="arrow-back" size={24} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Checkout</Text>
+        <View style={{ width: 40 }} />
+      </View>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header Section */}
-        <View style={styles.header}>
-          <Text style={styles.orderNumber}>Order ID: #{orderData.orderID}</Text>
-          <Text style={styles.dateText}>Placed on {orderData.orderDate}</Text>
+        <View style={styles.orderIDHeader}>
+          <Text style={styles.orderNumber}>Order ID: #{order.orderID}</Text>
+          <Text style={styles.dateText}>Placed on {order.orderDate}</Text>
           <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>{orderData.status}</Text>
+            <Text style={styles.statusText}>{order.status}</Text>
           </View>
         </View>
 
         {/* Items List */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Items Ordered</Text>
-          {orderData.items.map((item) => (
-            <View key={item.productID} style={styles.itemRow}>
+          {order.items.map((item) => (
+            <View key={item.id} style={styles.itemRow}>
+              <Image source={{ uri: item.image }} style={styles.productImage} />
               <View>
-                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemName}>{item.title}</Text>
                 <Text style={styles.itemQty}>Qty: {item.quantity}</Text>
+                <Text style={styles.itemPrice}>
+                  ${(item.price * item.quantity).toFixed(2)}
+                </Text>
               </View>
-              <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
             </View>
           ))}
         </View>
@@ -53,31 +57,45 @@ const OrderDetailScreen = ({ route, navigation }) => {
           <Text style={styles.cardTitle}>Payment Summary</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Subtotal</Text>
-            <Text style={styles.summaryValue}>$300.00</Text>
+            <Text style={styles.summaryValue}>
+              ${order.subtotal.toFixed(2)}
+            </Text>
           </View>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Shipping & Fees</Text>
-            <Text style={styles.summaryValue}>$259.99</Text>
+            <Text style={styles.summaryLabel}>Tax</Text>
+            <Text style={styles.summaryValue}>${order.tax.toFixed(2)}</Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Shipping</Text>
+            <Text style={styles.summaryValue}>Free</Text>
           </View>
           <View style={[styles.summaryRow, styles.totalRow]}>
             <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>${orderData.totalAmount}</Text>
+            <Text style={styles.totalValue}>${order.total.toFixed(2)}</Text>
           </View>
         </View>
-
-        {/* Reorder Button */}
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Reorder Items</Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f8f9fa" },
-  scrollContent: { padding: 20 },
-  header: { marginBottom: 24, alignItems: "center" },
+  container: { flex: 1, backgroundColor: "#f8f9fa", padding: 20 },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  headerTitle: { fontSize: 20, fontWeight: "bold" },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    padding: 8,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 25,
+  },
+  scrollContent: { padding: 0 },
+  orderIDHeader: { marginTop: 24, marginBottom: 24, alignItems: "center" },
   orderNumber: { fontSize: 22, fontWeight: "bold", color: "#333" },
   dateText: { color: "#666", marginTop: 4 },
   statusBadge: {
@@ -109,14 +127,19 @@ const styles = StyleSheet.create({
   },
   itemRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 0.5,
     borderBottomColor: "#eee",
   },
-  itemName: { fontSize: 15, fontWeight: "500" },
-  itemQty: { color: "#888", fontSize: 13, marginTop: 2 },
-  itemPrice: { fontSize: 15, fontWeight: "600" },
+  itemName: { fontSize: 15, fontWeight: "500", marginStart: 10 },
+  itemQty: { color: "#888", fontSize: 13, marginTop: 2, marginStart: 10 },
+  itemPrice: {
+    fontSize: 15,
+    fontWeight: "600",
+    marginTop: 4,
+    color: "#333",
+    marginStart: 10,
+  },
   summaryRow: {
     flexDirection: "row",
     justifyBetween: "space-between",
@@ -124,22 +147,31 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { color: "#666", flex: 1 },
   summaryValue: { fontWeight: "500" },
+  totalLabel: { fontSize: 18, fontWeight: "bold", flex: 1 },
+  totalValue: { fontSize: 18, fontWeight: "bold", color: "#007bff" },
   totalRow: {
     marginTop: 12,
     pt: 12,
     borderTopWidth: 1,
     borderTopColor: "#eee",
   },
-  totalLabel: { fontSize: 18, fontWeight: "bold" },
-  totalValue: { fontSize: 18, fontWeight: "bold", color: "#007bff" },
-  button: {
-    backgroundColor: "#000",
-    padding: 16,
-    borderRadius: 12,
+  itemCard: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
+    backgroundColor: "#FFF",
+    marginBottom: 15,
   },
-  buttonText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
+  productImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: "#f7fff0",
+  },
+  productDetails: { flex: 1, marginLeft: 15 },
+  productTitle: { fontSize: 15, fontWeight: "600" },
+  productSub: { color: "#999", marginVertical: 0 },
+  productPrice: { fontWeight: "bold", color: "#333" },
+  qtyText: { color: "#007953", fontWeight: "600", fontSize: 16 },
 });
 
 export default OrderDetailScreen;
